@@ -18,14 +18,14 @@ class DynamicsWrapper
     private IODataClient $oDataClient;
 
     public function __construct(
-        string $dynamicsBaseUrl,
-        string $dynamicsTenantId,
+        string $dynamicsAuthBaseUrl,
         string $dynamicsApiBaseUrl,
+        string $dynamicsTenantId,
         string $dynamicsAppId,
         string $dynamicsClientKey,
         HttpClientInterface $httpClient
     ) {
-        $tokenUrl = $dynamicsBaseUrl . $dynamicsTenantId . '/oauth2/v2.0/token';
+        $tokenUrl = $dynamicsAuthBaseUrl . $dynamicsTenantId . '/oauth2/v2.0/token';
         $url = parse_url($dynamicsApiBaseUrl);
         if (!$url || !array_key_exists('scheme', $url) || !array_key_exists('host', $url)) {
             throw new \InvalidArgumentException('Error parsing Dynamics API base URL');
