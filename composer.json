@@ -17,6 +17,9 @@
     "minimum-stability": "stable",
     "require": {
         "php": "^8.2",
-        "saintsystems/odata-client": "^1.0.1"
+        "benjaminfavre/oauth2-http-client": "^3.0",
+        "saintsystems/odata-client": "^1.0.1",
+        "nyholm/psr7": "^1.8",
+        "symfony/http-client": "^5.4|^6.0|^7.0|^8.0"
     }
 }
