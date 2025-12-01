@@ -1,0 +1,22 @@
+{
+    "name": "explicatis/dynamics-php-api",
+    "description": "A wrapper to access Dynamics 365 REST APIs in PHP",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Explicatis\\DynamicsPhpApi\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Jörn Wagner",
+            "email": "joern.wagner@explicatis.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": "^8.2",
+        "saintsystems/odata-client": "^1.0.1"
+    }
+}
