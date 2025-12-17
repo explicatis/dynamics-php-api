@@ -70,8 +70,10 @@ class DynamicsWrapper
      */
     public function executeFetchXmlRequest(string $table, string $fetchXml): array
     {
-        // TODO Check size limit for GET parameter. Maybe send via POST?
+        // Remove unnecessary whitespace from FetchXML string
+        $fetchXml = trim(preg_replace('/\s+/', ' ', $fetchXml));
 
+        // TODO Check size limit for GET parameter. Maybe send via POST?
         return $this->oDataClient->get("$table?fetchXml=" . urlencode($fetchXml));
     }
 
