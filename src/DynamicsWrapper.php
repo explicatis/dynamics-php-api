@@ -4,9 +4,13 @@ namespace Explicatis\DynamicsPhpApi;
 
 use BenjaminFavre\OAuthHttpClient\OAuthHttpClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use SaintSystems\OData\Entity;
 use SaintSystems\OData\IODataClient;
+use SaintSystems\OData\IODataResponse;
 use SaintSystems\OData\ODataClient;
 use SaintSystems\OData\Psr17HttpProvider;
+use SaintSystems\OData\Query\Builder;
+use SaintSystems\OData\RequestHeader;
 use Symfony\Component\HttpClient\Psr18Client;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -46,15 +50,9 @@ class DynamicsWrapper
         $streamFactory = new Psr17Factory();
         $httpProvider = new Psr17HttpProvider($psrClient, $requestFactory, $streamFactory);
 
-        $this->oDataClient = new ODataClient(
-            $dynamicsApiBaseUrl,
-            null,
-            $httpProvider
-        )->setHeaders([
-            'OData-MaxVersion' => '4.0',
-            'OData-Version' => '4.0',
-            'Prefer' => 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"'
-        ]);
+        $this->oDataClient = new ODataClient($dynamicsApiBaseUrl, httpProvider: $httpProvider)
+            ->addHeader(RequestHeader::PREFER, 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"')
+        ;
     }
 
     public function getClient(): IODataClient
@@ -66,12 +64,35 @@ class DynamicsWrapper
      * @throws ClientExceptionInterface
      * @throws RedirectionExceptionInterface
      * @throws ServerExceptionInterface
-     * @return mixed[]
+     * @return Entity[]
      */
-    public function executeFetchXmlRequest(string $table, string $fetchXml): array
+    public function fetchXmlEntities(string $table, string $fetchXml): array
+    {
+        return $this->fetchXml($table, $fetchXml, null);
+    }
+
+    /**
+     * @throws ClientExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws \UnexpectedValueException
+     */
+    public function fetchXmlRaw(string $table, string $fetchXml): IODataResponse
+    {
+        $result = $this->fetchXml($table, $fetchXml, false);
+        if (!is_array($result) || !array_key_exists(0, $result)) {
+            throw new \UnexpectedValueException('Result should have been an array with an IODataResponse');
+        }
+
+        return $result[0];
+    }
+
+    private function fetchXml(string $table, string $fetchXml, bool|string|null $entityReturnType = null): array|IODataResponse
     {
         // Remove unnecessary whitespace from FetchXML string
         $fetchXml = trim(preg_replace('/\s+/', ' ', $fetchXml));
+
+        $this->oDataClient->setEntityReturnType($entityReturnType);
 
         // TODO Check size limit for GET parameter. Maybe send via POST?
         return $this->oDataClient->get("$table?fetchXml=" . urlencode($fetchXml));
@@ -79,10 +100,48 @@ class DynamicsWrapper
 
     /**
      * @throws ODataException
+     * @return Entity[]
      */
-    public function executeODataRequest(string $request, string $method = 'GET'): array
+    public function oDataEntities(string $request, string $method = 'GET'): array
     {
         return (array) $this->oDataClient->request($method, $request);
+    }
+
+    /**
+     * @throws ODataException
+     * @throws \UnexpectedValueException
+     */
+    public function oDataRaw(string $request, string $method = 'GET'): IODataResponse
+    {
+        $this->oDataClient->setEntityReturnType(false);
+
+        $result = $this->oDataClient->request($method, $request);
+        if (!is_array($result) || !array_key_exists(0, $result)) {
+            throw new \UnexpectedValueException('Result should have been an array with an IODataResponse');
+        }
+
+        return $result[0];
+    }
+
+    /**
+     * @param string $table
+     * @param array<string> $fields
+     * @param array<string> $filters
+     * @param array<string> $expandFields
+     * @return Builder
+     */
+    public function getQueryBuilder(
+        string $table,
+        array $fields,
+        array $filters,
+        array $expandFields = [],
+    ): Builder {
+        $queryBuilder = $this->getClient()->from($table)->select($fields)->where($filters);
+        if (!empty($expandFields)) {
+            $queryBuilder->expand($expandFields);
+        }
+
+        return $queryBuilder;
     }
 
     /**
@@ -91,6 +150,23 @@ class DynamicsWrapper
      * @param array<string> $filters
      * @param array<string> $expandFields
      * @return string
+     */
+    public function getRequestString(
+        string $table,
+        array $fields,
+        array $filters,
+        array $expandFields = [],
+    ): string {
+        return $this->getQueryBuilder($table, $fields, $filters, $expandFields)->toRequest();
+    }
+
+    /**
+     * @param string $table
+     * @param array<string> $fields
+     * @param array<string> $filters
+     * @param array<string> $expandFields
+     * @return string
+     * @deprecated Use getRequestString or the query builder
      */
     public function buildRequest(
         string $table,
