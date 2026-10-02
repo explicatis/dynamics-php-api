@@ -76,12 +76,17 @@ class DynamicsWrapper
      * @throws RedirectionExceptionInterface
      * @throws ServerExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \ErrorException if Dynamics reports an error in the response body
      */
     public function fetchXmlRaw(string $table, string $fetchXml): IODataResponse
     {
         $result = $this->fetchXml($table, $fetchXml, false);
         if (!is_array($result) || !array_key_exists(0, $result)) {
             throw new \UnexpectedValueException('Result should have been an array with an IODataResponse');
+        }
+        $body = $result[0]->getBody();
+        if (is_array($body) && array_key_exists('error', $body)) {
+            throw new \ErrorException($body['error']['message'] ?? 'Unknown Dynamics API error');
         }
 
         return $result[0];
